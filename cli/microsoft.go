@@ -7,17 +7,25 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	http "github.com/bogdanfinn/fhttp"
+	tls_client "github.com/bogdanfinn/tls-client"
+	"github.com/bogdanfinn/tls-client/profiles"
 )
 
+// msTLSProfile is the browser TLS/HTTP2 fingerprint the CLI presents to Microsoft.
+// Kept in step with msUA's claimed Chrome version -- a mismatched UA vs. TLS
+// fingerprint is itself a detectable signal, so if one changes, change both.
+var msTLSProfile = profiles.Chrome_133
+
 const (
-	msUA       = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+	msUA       = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
 	msProfile  = "606624d44113"
 	msLocale   = "en-US"
 	msOrgID    = "y6jn8c31"
@@ -45,37 +53,6 @@ type EvalLink struct {
 	Arch string
 	Lang string
 	URL  string
-}
-
-type simpleCookieJar struct {
-	mu      sync.Mutex
-	cookies []*http.Cookie
-}
-
-func (j *simpleCookieJar) SetCookies(_ *url.URL, cookies []*http.Cookie) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	for _, c := range cookies {
-		found := false
-		for i, existing := range j.cookies {
-			if existing.Name == c.Name {
-				j.cookies[i] = c
-				found = true
-				break
-			}
-		}
-		if !found {
-			j.cookies = append(j.cookies, c)
-		}
-	}
-}
-
-func (j *simpleCookieJar) Cookies(_ *url.URL) []*http.Cookie {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	out := make([]*http.Cookie, len(j.cookies))
-	copy(out, j.cookies)
-	return out
 }
 
 func newSessionID() string {
@@ -116,10 +93,16 @@ func mapDownloadType(n int) string {
 	}
 }
 
-func newSession() (*http.Client, string) {
+func newSession() (tls_client.HttpClient, string) {
 	sessionID := newSessionID()
-	jar := &simpleCookieJar{}
-	client := &http.Client{Timeout: 15 * time.Second, Jar: jar}
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(),
+		tls_client.WithTimeoutSeconds(15),
+		tls_client.WithClientProfile(msTLSProfile),
+		tls_client.WithCookieJar(tls_client.NewCookieJar()),
+	)
+	if err != nil {
+		return nil, sessionID
+	}
 
 	q1 := url.Values{}
 	q1.Set("org_id", msOrgID)
@@ -158,7 +141,7 @@ func newSession() (*http.Client, string) {
 	return client, sessionID
 }
 
-func msGet(client *http.Client, reqURL, productID string) ([]byte, error) {
+func msGet(client tls_client.HttpClient, reqURL, productID string) ([]byte, error) {
 	req, _ := http.NewRequest("GET", reqURL, nil)
 	req.Header.Set("User-Agent", msUA)
 	req.Header.Set("Referer", referer(productID))
@@ -249,7 +232,7 @@ func parseDownloadLinks(raw []byte) ([]DownloadLink, error) {
 	return links, nil
 }
 
-func fetchLanguages(client *http.Client, sessionID, productID string) ([]Language, error) {
+func fetchLanguages(client tls_client.HttpClient, sessionID, productID string) ([]Language, error) {
 	q := url.Values{}
 	q.Set("profile", msProfile)
 	q.Set("productEditionId", productID)
@@ -267,7 +250,7 @@ func fetchLanguages(client *http.Client, sessionID, productID string) ([]Languag
 }
 
 // fetchDownloadLinks returns parsed links and the raw Microsoft JSON (for cache contribution).
-func fetchDownloadLinks(client *http.Client, sessionID, productID, skuID string) ([]DownloadLink, []byte, error) {
+func fetchDownloadLinks(client tls_client.HttpClient, sessionID, productID, skuID string) ([]DownloadLink, []byte, error) {
 	wq := url.Values{}
 	wq.Set("profile", msProfile)
 	wq.Set("productEditionId", productID)
@@ -335,7 +318,13 @@ func detectLang(rawURL string) string {
 }
 
 func fetchEvalLinks(evalURL string) ([]EvalLink, error) {
-	client := &http.Client{Timeout: 20 * time.Second}
+	client, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(),
+		tls_client.WithTimeoutSeconds(20),
+		tls_client.WithClientProfile(msTLSProfile),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating http client: %w", err)
+	}
 	req, _ := http.NewRequest("GET", evalURL, nil)
 	req.Header.Set("User-Agent", msUA)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
