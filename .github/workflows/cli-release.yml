@@ -74,7 +74,14 @@ jobs:
             ```
             (formula is `msdl-cli`, not `msdl` -- homebrew/core has an unrelated package named `msdl`; the installed command is still just `msdl`)
 
-            **macOS/Linux (no Homebrew):**
+            **Arch Linux (AUR):**
+            ```bash
+            yay -S msdl-bin
+            # or: paru -S msdl-bin
+            ```
+            [aur.archlinux.org/packages/msdl-bin](https://aur.archlinux.org/packages/msdl-bin)
+
+            **macOS/Linux (no Homebrew/AUR):**
             ```bash
             curl -fsSL https://api.msdl.tech-latest.com/install.sh | bash
             ```
