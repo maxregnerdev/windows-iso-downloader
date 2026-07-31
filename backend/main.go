@@ -132,7 +132,7 @@ func truncateBody(s string) string {
 	return s
 }
 
-// --- Negative cache (60s normal / 90min Sentinel lockdown) ---
+// --- Negative cache (60s normal / 5h Sentinel lockdown) ---
 
 type negCacheEntry struct {
 	Message    string
@@ -145,7 +145,10 @@ var (
 	negCache    = make(map[string]negCacheEntry)
 	negCacheMu  sync.RWMutex
 	negCacheTTL = 60 * time.Second
-	lockdownTTL = 90 * time.Minute
+	// Bumped from 90min on 2026-07-31: 181 retry attempts over 17 days, 0 successes.
+	// Retries yield zero value right now, so back off harder instead of hammering
+	// Microsoft (and our own IP's reputation) every 90 minutes for nothing.
+	lockdownTTL = 5 * time.Hour
 )
 
 // --- Singleflight (one in-flight Microsoft fetch per unique key) ---
@@ -1184,6 +1187,10 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 		respondJSONError(w, http.StatusBadRequest, "sku_id contains invalid characters")
 		return
 	}
+	if !validContributeProducts[productID] {
+		respondJSONError(w, http.StatusNotFound, "unknown product_id")
+		return
+	}
 
 	atomic.AddInt64(&mLinkRequests, 1)
 	cacheKey := productID + ":" + skuID
@@ -1301,7 +1308,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 			atomic.AddInt64(&mLinkStale, 1)
 
 			if isSentinel {
-				// Sentinel lockdown: set 90-min neg cache, add lockdown header, skip
+				// Sentinel lockdown: set lockdownTTL neg cache, add lockdown header, skip
 				// background refresh — retrying extends the Sentinel block timer.
 				negCacheMu.Lock()
 				negCache[negKey] = negCacheEntry{
@@ -1311,7 +1318,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 					IsSentinel: true,
 				}
 				negCacheMu.Unlock()
-				log.Printf("/proxy: product_id=%s sku_id=%s -> Sentinel lockdown (90min), serving stale\n", productID, skuID)
+				log.Printf("/proxy: product_id=%s sku_id=%s -> Sentinel lockdown (%s), serving stale\n", productID, skuID, lockdownTTL)
 				w.Header().Set("X-MSDL-Lockdown", "1")
 				w.Header().Set("X-MSDL-Link-Status", "stale")
 				if exp := extractRawExpiry(cached.RawJSON); exp != "" {
@@ -1365,7 +1372,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 			}
 			negCacheMu.Unlock()
 			if isSentinel {
-				log.Printf("/proxy: product_id=%s sku_id=%s -> Sentinel lockdown (90min), no stale\n", productID, skuID)
+				log.Printf("/proxy: product_id=%s sku_id=%s -> Sentinel lockdown (%s), no stale\n", productID, skuID, lockdownTTL)
 				w.Header().Set("X-MSDL-Lockdown", "1")
 				w.WriteHeader(code)
 				json.NewEncoder(w).Encode(map[string]interface{}{
