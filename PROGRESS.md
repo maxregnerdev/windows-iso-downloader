@@ -2,6 +2,51 @@
 
 ## Shipped
 
+### Sentinel WAF investigation & resilience hardening — backend merged, CLI fix pending
+
+Three weekly `/metrics` + raw docker-log checkpoints (2026-07-14 → 07-21 → 07-31) turned the
+"Microsoft blocks our server IP" assumption from a one-off observation into a confirmed,
+stable fact — and revealed the crowdsourcing architecture below is now doing all the real work.
+
+**What the data actually showed:**
+- `link.ms_fetches: 0` at every checkpoint — the backend's own direct link-fetch to Microsoft
+  has not succeeded once, ever, across 17+ days.
+- Raw docker logs showed not just zero successes but zero *attempted-and-failed* fetches
+  either — the existing Sentinel lockdown gate short-circuits the request before it even
+  reaches Microsoft, serving cache/stale silently instead. 181 blocked session attempts over
+  the same window, all 181 unsuccessful.
+- The site stayed online anyway: 286 CLI contributions accepted, 0 rejected, in that same
+  window — confirming the crowdsourced cache from the CLI (see architecture entry below) is
+  the thing actually keeping links fresh now, not the backend's own fetch.
+- `/skuinfo` (125 successful Microsoft fetches) and `/evallinks` (126 cache hits, 0 failures)
+  are both unaffected — Sentinel targets the download-link endpoint specifically.
+- The CLI's own residential-IP requests held a stable ~20% Sentinel-rejection rate across all
+  three checkpoints too — not improving, not worsening, despite running from IPs that
+  shouldn't trip ASN-based blocking. Traced the exact error text
+  (`"Sentinel marked this request as rejected."`) to Microsoft's own API response
+  (`Errors[0].Value` with `Type: 9`) — confirming "Sentinel" is Microsoft's real name for this
+  system, not our guess, and that it returns a clean structured JSON deny rather than an
+  HTML/JS challenge page (suggesting a signature/reputation gate rather than full interactive
+  bot management).
+
+**Backend fixes (`fix/sentinel-lockdown-and-proxy-validation`, merged):**
+- `lockdownTTL` bumped 90min → 5h. 181 retries, 0 successes — retrying that often was pure
+  noise against Microsoft (and our own IP's reputation) for zero return.
+- `/proxy` now validates `product_id` against the existing catalog allow-list before
+  attempting a Microsoft session. Found via a stray `product_id=2861` (never a real product)
+  in the logs — the backend was burning a full outbound attempt and a Sentinel-block hit on
+  IDs that could never succeed anyway.
+
+**CLI fix (`feat/cli-tls-fingerprint-hardening`, not yet merged):** swapped the CLI's HTTP
+transport from stdlib `net/http` to `github.com/bogdanfinn/tls-client` (wraps `utls` with a
+maintained Chrome TLS+HTTP2 fingerprint), on the theory that Go's default TLS handshake is
+itself a detectable non-browser signal, independent of IP. Verified functionally correct
+end-to-end (real link fetched and contributed), but that does *not* prove the theory — the
+old client already succeeded ~80% of the time. Real validation is watching the
+Sentinel-rejection-rate telemetry over a comparable multi-day window post-merge.
+
+---
+
 ### CLI + resilience architecture (formerly `IMPLEMENTATION_PLAN.md`, Phases 1–5) — merged
 
 Microsoft's Azure Sentinel WAF started blocking the backend's data-center IP (Hetzner) on
@@ -120,4 +165,3 @@ CF Worker ensures Hetzner IP is never exposed to Microsoft — rate-limit block 
 | Item | Notes |
 |---|---|
 | Per-IP / per-product rate limiter | Revisit after 1 month of production traffic data |
-| `_redirects` Cloudflare Pages bug | SPA fallback rule flagged as infinite loop, may cause 404s on direct nav |

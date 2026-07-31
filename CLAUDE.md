@@ -37,6 +37,41 @@ negative cache (60s), dynamic TTL, stale-on-failure, jitter. Verified in product
 - [x] **Recently viewed** — localStorage only. Shows on homepage. Consumer + eval pages both tracked. Expired state shown when link expiry known.
 - ~~**File size**~~ — not feasible. Microsoft CDN does not return file size in the API response.
 
+### Sentinel WAF resilience (ongoing)
+
+Confirmed via three weekly `/metrics` + docker-log checkpoints (2026-07-14 → 07-21 → 07-31):
+the backend's own direct link-fetch (`/proxy` → Microsoft) is **100% blocked**, permanently —
+`link.ms_fetches: 0` every time, and zero even-attempted-and-failed fetches in the raw logs
+(the lockdown gate short-circuits before reaching that code path). The site stays alive
+entirely on cached/stale entries plus CLI-contributed links (286 accepted, 0 rejected,
+confirmed 2026-07-31). `/skuinfo` and `/evallinks` are unaffected — only the download-link
+endpoint is targeted.
+
+The CLI's own residential-IP requests also see a stable ~20% Sentinel rejection rate across
+all three checkpoints — not improving, not worsening. Microsoft's own API error response
+literally names the system (`"Sentinel marked this request as rejected."`, `Type: 9` in
+`Errors[]`), confirming it's a real, named product, not our guess. The clean structured-JSON
+deny (not an HTML/JS challenge page) suggests a signature/reputation gate rather than full
+interactive bot-management — TLS ClientHello fingerprinting is a plausible contributing
+signal, since Go's stdlib `crypto/tls` doesn't look like any real browser, independent of IP.
+
+- [x] **Back off Sentinel retries** — bumped `lockdownTTL` 90min → 5h (`backend/main.go`).
+      181 retries over 17 days, 0 successes; retrying that often was pure noise.
+      (fix/sentinel-lockdown-and-proxy-validation, merged)
+- [x] **Validate `product_id` in `/proxy`** — was passing unknown IDs straight through to a
+      real Microsoft session attempt (found via a stray `product_id=2861`, never a real
+      product, in the logs). Now rejected with 404 before any outbound call. (same PR, merged)
+- [ ] **CLI TLS/HTTP2 fingerprint hardening** — swapped the CLI's transport from stdlib
+      `net/http` to `github.com/bogdanfinn/tls-client` (wraps `utls` with a maintained Chrome
+      profile). Verified functionally correct (real link fetched + contributed end-to-end),
+      but does NOT yet prove the fingerprint theory — the old client already succeeded ~80%
+      of the time. Need to watch the Sentinel-rejection-rate telemetry over a comparable
+      multi-day window post-merge. (feat/cli-tls-fingerprint-hardening, not yet merged)
+- [ ] **`/needs-warming` community page** — proposed, not built. Surfaces products currently
+      failing web users (active Sentinel/rate-limit lockdown, no cached/stale link available)
+      with a one-click CLI command to fix it. See
+      `docs/superpowers/specs/2026-07-13-needs-warming-design.md`.
+
 ### Known bugs / open issues
 
 - [x] **`_redirects` Cloudflare Pages** — investigated 2026-07-21. The rule was indeed ignored
