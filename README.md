@@ -70,7 +70,14 @@ brew install msdl-cli
 ```
 (the formula is named `msdl-cli`, not `msdl` — `homebrew/core` already has an unrelated package called `msdl`; the installed command is still just `msdl`)
 
-**macOS / Linux (no Homebrew):**
+**Arch Linux (AUR):**
+```bash
+yay -S msdl-bin
+# or: paru -S msdl-bin
+```
+Package: [aur.archlinux.org/packages/msdl-bin](https://aur.archlinux.org/packages/msdl-bin). Source tracked here at [`aur/msdl-bin`](./aur/msdl-bin).
+
+**macOS / Linux (no Homebrew/AUR):**
 ```bash
 curl -fsSL https://api.msdl.tech-latest.com/install.sh | bash
 ```
@@ -85,8 +92,6 @@ Auto-detects OS/arch (including Termux on Android) and installs the latest relea
 | macOS (Intel) | `msdl-darwin-amd64` | `msdl` |
 | Linux (x86_64) | `msdl-linux-amd64` | `msdl` |
 | Linux (ARM64, incl. Termux on Android) | `msdl-linux-arm64` | `msdl` |
-
-An AUR package (`msdl-bin`) is prepared but not yet published — Arch Linux disabled new AUR registrations after a [malware incident](https://itsfoss.com/news/arch-linux-aur-malware-flood/); see [`aur/msdl-bin`](./aur/msdl-bin) for status.
 
 ### Crowdsourced cache
 
