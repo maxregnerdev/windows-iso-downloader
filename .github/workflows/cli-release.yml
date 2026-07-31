@@ -108,8 +108,15 @@ jobs:
             msdl --list                                       # list all products
             ```
 
+  submit-winget:
+    # wingetcreate is a native Windows tool (needs .NET 6 + VC++ Redistributable) --
+    # it is NOT published as a NuGet/dotnet-tool package, so it can only run on a
+    # windows-latest runner, not ubuntu-latest like the release job above.
+    needs: release
+    runs-on: windows-latest
+    steps:
       - name: Submit winget update
-        if: success()
+        shell: bash
         env:
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
@@ -117,10 +124,10 @@ jobs:
             echo "WINGET_TOKEN not set, skipping winget update"
             exit 0
           fi
-          dotnet tool install --global wingetcreate
+          curl -L -o wingetcreate.exe https://github.com/microsoft/winget-create/releases/latest/download/wingetcreate.exe
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#cli/v}"
-          wingetcreate update starkSV.msdl \
+          ./wingetcreate.exe update starkSV.msdl \
             --version "$VERSION" \
             --urls "https://github.com/starkSV/windows-iso-downloader/releases/download/${{ github.ref_name }}/msdl-windows-amd64.exe" \
             --submit \
