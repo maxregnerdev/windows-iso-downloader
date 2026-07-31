@@ -1,12 +1,11 @@
 # msdl-bin (AUR)
 
-> **⚠️ Publishing blocked as of 2026-07-13:** Arch Linux disabled new AUR account
-> registrations on 2026-06-15 after a malware campaign compromised 1,500+ AUR
-> packages across several waves. There's no announced reopening date. This
-> package is ready to publish (`PKGBUILD` + `.SRCINFO` below) the moment
-> registration reopens — check the [aur-general mailing list](https://lists.archlinux.org/mailman3/lists/aur-general.lists.archlinux.org/)
-> or [aur.archlinux.org](https://aur.archlinux.org/register/) periodically.
-> Until then, macOS/Linux users should use the [Homebrew tap](https://github.com/starkSV/homebrew-msdl) instead.
+> **✅ Registration reopened as of 2026-07-31:** Arch Linux disabled new AUR
+> account registrations on 2026-06-15 after a malware campaign compromised
+> 1,500+ AUR packages across several waves; registration is open again.
+> This package (`PKGBUILD` + `.SRCINFO` below) is ready to publish — see
+> "Publishing" below once an account + SSH key are set up at
+> [aur.archlinux.org](https://aur.archlinux.org/register/).
 
 `PKGBUILD` and `.SRCINFO` for the [msdl-bin](https://aur.archlinux.org/packages/msdl-bin) AUR package, tracked here so version bumps have the same history/review as the winget manifests.
 
