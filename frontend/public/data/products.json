@@ -12,7 +12,7 @@
     },
     "2378": {
         "name": "Windows 10 22H2 Home China (19045.2006)",
-        "badge": "EOL SOON",
+        "badge": "EOL",
         "archs": [
             "x64"
         ],
@@ -22,7 +22,7 @@
     },
     "2618": {
         "name": "Windows 10 22H2 v1 (19045.2965)",
-        "badge": "EOL SOON",
+        "badge": "EOL",
         "archs": [
             "x64",
             "x86"

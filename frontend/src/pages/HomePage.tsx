@@ -35,7 +35,7 @@ const featured = [
     name: 'Windows 10',
     version: '22H2',
     build: '19045.2965',
-    description: 'The final Windows 10 feature update. Security support until October 2025.',
+    description: 'The final Windows 10 feature update. Support ended Oct 2025; ESU through Oct 2026.',
     badge: 'eol' as const,
     archs: ['x64', 'x86'],
   },
