@@ -95,8 +95,8 @@ def scan_id(product_id):
             # Tag Copilot+ PC / vNext builds
             try:
                 pid_int = int(product_id)
-                if pid_int >= 30000:
-                    return f"{name} (Copilot+ PC / vNext)"
+                if pid_int >= 29999:
+                    return f"{name} (Copilot+ PC / Project Aion)"
             except ValueError:
                 pass
             return name

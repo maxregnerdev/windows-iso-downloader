@@ -486,11 +486,8 @@ var validContributeProducts = map[string]bool{
 	"3265": true, "3266": true, "3267": true,
 	"3321": true, "3322": true, "3323": true,
 	"3324": true, "3325": true, "3326": true,
-	// Windows 11 vNext (Copilot+ PC) builds 30000+
-	"30000": true, "30001": true, "30002": true,
-	"30005": true, "30010": true, "30015": true,
-	"30020": true, "30025": true, "30030": true,
-	"30050": true,
+	// Windows 11 Copilot+ PC (Project Aion)
+	"29999": true,
 }
 
 // allowedCDNSuffixes is the CDN host allow-list for contributed download URLs.
