@@ -477,7 +477,31 @@ func startMetricsFlusher() {
 
 // --- /contribute validation helpers ---
 
+// Copilot OS / Project Aion builds (28000-32000) are dynamically allowed
+func isValidContributeProduct(productID string) bool {
+	// Static known products
+	staticProducts := map[string]bool{
+		"52": true, "2378": true, "2618": true,
+		"3113": true, "3114": true, "3115": true,
+		"3131": true, "3132": true, "3133": true,
+		"3262": true, "3263": true, "3264": true,
+		"3265": true, "3266": true, "3267": true,
+		"3321": true, "3322": true, "3323": true,
+		"3324": true, "3325": true, "3326": true,
+	}
+	if staticProducts[productID] {
+		return true
+	}
+	// Allow Copilot OS / Project Aion range (28000-32000)
+	id, err := strconv.Atoi(productID)
+	if err == nil && id >= 28000 && id <= 32000 {
+		return true
+	}
+	return false
+}
+
 // validContributeProducts is the canonical product ID allow-list for POST /contribute.
+// Copilot OS / Project Aion builds (28000-32000) are dynamically validated via isValidContributeProduct
 var validContributeProducts = map[string]bool{
 	"52": true, "2378": true, "2618": true,
 	"3113": true, "3114": true, "3115": true,
@@ -486,8 +510,6 @@ var validContributeProducts = map[string]bool{
 	"3265": true, "3266": true, "3267": true,
 	"3321": true, "3322": true, "3323": true,
 	"3324": true, "3325": true, "3326": true,
-	// Windows 11 Copilot+ PC (Project Aion)
-	"29999": true,
 }
 
 // allowedCDNSuffixes is the CDN host allow-list for contributed download URLs.
@@ -1191,7 +1213,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
 		respondJSONError(w, http.StatusBadRequest, "sku_id contains invalid characters")
 		return
 	}
-	if !validContributeProducts[productID] {
+	if !isValidContributeProduct(productID) {
 		respondJSONError(w, http.StatusNotFound, "unknown product_id")
 		return
 	}
@@ -1466,7 +1488,7 @@ func handleContribute(w http.ResponseWriter, r *http.Request) {
 	skuID := req.SkuID
 
 	// Validation 1: product in catalog
-	if !validContributeProducts[productID] {
+	if !isValidContributeProduct(productID) {
 		log.Printf("contribute: product_id=%s sku_id=%s -> rejected (unknown product)\n", productID, skuID)
 		respondJSONError(w, http.StatusUnprocessableEntity, "unknown product_id")
 		return
