@@ -63,6 +63,13 @@ var evalProducts = []EvalProduct{
 
 
 
+// MSDL API constants for catalog discovery (renamed to avoid conflicts with microsoft.go)
+const (
+	msdlProfile  = "606624d44113"
+	msdlLocale   = "en-US"
+	msdlUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
 // DiscoverCopilotOSProducts dynamically fetches Copilot+ PC / Project Aion builds from Microsoft API
 func DiscoverCopilotOSProducts() []Product {
 	var products []Product
