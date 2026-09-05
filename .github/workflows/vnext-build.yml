@@ -192,7 +192,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           for job in build-cli build-backend test-cli scan-vnext test-vnext-catalog; do
-            status="${{ needs.$job.result }}"
+            status="${{ needs.build-cli.result }}"
             case $status in
               success) icon="✅";;
               failure) icon="❌";;
