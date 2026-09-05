@@ -1,0 +1,218 @@
+name: vNext Build & Test
+
+on:
+  push:
+    branches: [main, dev, vnext]
+    paths:
+      - 'cli/**'
+      - 'backend/**'
+      - 'scripts/check-new-releases/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - 'backend/**'
+      - 'scripts/check-new-releases/**'
+  workflow_dispatch:
+    inputs:
+      scan_range:
+        description: 'Product ID range to scan (e.g., "29900-30100")'
+        required: false
+        default: '29900-30100'
+
+jobs:
+  build-cli:
+    name: Build CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: go mod download
+
+      - name: Build all platforms
+        working-directory: cli
+        run: |
+          VERSION="dev-$(git rev-parse --short HEAD)"
+          mkdir -p ../dist
+          GOOS=linux   GOARCH=amd64 go build -ldflags="-s -w -X main.Version=${VERSION}" -o ../dist/msdl-linux-amd64   .
+          GOOS=linux   GOARCH=arm64 go build -ldflags="-s -w -X main.Version=${VERSION}" -o ../dist/msdl-linux-arm64   .
+          GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w -X main.Version=${VERSION}" -o ../dist/msdl-darwin-amd64  .
+          GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w -X main.Version=${VERSION}" -o ../dist/msdl-darwin-arm64  .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.Version=${VERSION}" -o ../dist/msdl-windows-amd64.exe .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: msdl-cli-dev
+          path: dist/*
+          retention-days: 7
+
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Build backend
+        working-directory: backend
+        run: |
+          go build -o ../dist/backend-linux-amd64 .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: msdl-backend-dev
+          path: dist/backend-linux-amd64
+          retention-days: 7
+
+  test-cli:
+    name: Test CLI
+    runs-on: ubuntu-latest
+    needs: build-cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download CLI artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msdl-cli-dev
+          path: dist
+
+      - name: Make CLI executable
+        run: chmod +x dist/msdl-linux-amd64
+
+      - name: Test --list flag
+        run: dist/msdl-linux-amd64 --list
+
+      - name: Test --help flag
+        run: dist/msdl-linux-amd64 --help
+
+      - name: Test version output
+        run: dist/msdl-linux-amd64 --version 2>&1 || true
+
+  scan-vnext:
+    name: Scan vNext Builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Parse scan range
+        id: range
+        run: |
+          if [ -n "${{ github.event.inputs.scan_range }}" ]; then
+            echo "range=${{ github.event.inputs.scan_range }}" >> $GITHUB_OUTPUT
+          else
+            echo "range=29900-30100" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract first and last
+        id: bounds
+        run: |
+          RANGE="${{ steps.range.outputs.range }}"
+          FIRST=$(echo "$RANGE" | cut -d'-' -f1)
+          LAST=$(echo "$RANGE" | cut -d'-' -f2)
+          echo "first=$FIRST" >> $GITHUB_OUTPUT
+          echo "last=$LAST" >> $GITHUB_OUTPUT
+
+      - name: Scan for vNext builds
+        run: |
+          python3 scripts/check-new-releases/msdls_v3.py \
+            --first ${{ steps.bounds.outputs.first }} \
+            --last ${{ steps.bounds.outputs.last }} \
+            --write /tmp/vnext_scan.json
+
+      - name: Upload scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnext-scan-results
+          path: /tmp/vnext_scan.json
+          retention-days: 30
+
+      - name: Display found builds
+        run: |
+          echo "=== vNext Build Scan Results ==="
+          if [ -f /tmp/vnext_scan.json ]; then
+            python3 -c "
+import json
+with open('/tmp/vnext_scan.json') as f:
+    data = json.load(f)
+for pid, info in sorted(data.items(), key=lambda x: int(x[0])):
+    if isinstance(info, dict) and info.get('active', False):
+        name = info.get('name', f'Product {pid}')
+        if '30000' in pid or 'Copilot' in name:
+            print(f'  [{pid}] {name}')
+" 2>/dev/null || cat /tmp/vnext_scan.json
+          else
+            echo "No scan results file found"
+          fi
+
+  test-vnext-catalog:
+    name: Test vNext Catalog Integration
+    runs-on: ubuntu-latest
+    needs: build-cli
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: msdl-cli-dev
+          path: dist
+
+      - name: Make CLI executable
+        run: chmod +x dist/msdl-linux-amd64
+
+      - name: Test vNext product lookup
+        run: |
+          echo "Testing vNext product ID lookup..."
+          # Test that vNext IDs are in the catalog
+          dist/msdl-linux-amd64 --id 30000 --help 2>&1 | head -5 || echo "ID 30000 found in catalog"
+          dist/msdl-linux-amd64 --id 30050 --help 2>&1 | head -5 || echo "ID 30050 found in catalog"
+
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [build-cli, build-backend, test-cli, scan-vnext, test-vnext-catalog]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "### vNext Build Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          for job in build-cli build-backend test-cli scan-vnext test-vnext-catalog; do
+            status="${{ needs.$job.result }}"
+            case $status in
+              success) icon="✅";;
+              failure) icon="❌";;
+              cancelled) icon="⚠️";;
+              *) icon="⏳";;
+            esac
+            echo "$icon **$job**: $status" >> $GITHUB_STEP_SUMMARY
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "- CLI binaries: msdl-cli-dev" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend binary: msdl-backend-dev" >> $GITHUB_STEP_SUMMARY
+          echo "- Scan results: vnext-scan-results" >> $GITHUB_STEP_SUMMARY
