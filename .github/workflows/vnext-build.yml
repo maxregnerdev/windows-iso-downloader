@@ -153,16 +153,16 @@ jobs:
         run: |
           echo "=== vNext Build Scan Results ==="
           if [ -f /tmp/vnext_scan.json ]; then
-            python3 -c "
+            python3 -c '
 import json
-with open('/tmp/vnext_scan.json') as f:
+with open("/tmp/vnext_scan.json") as f:
     data = json.load(f)
 for pid, info in sorted(data.items(), key=lambda x: int(x[0])):
-    if isinstance(info, dict) and info.get('active', False):
-        name = info.get('name', f'Product {pid}')
-        if '30000' in pid or 'Copilot' in name:
-            print(f'  [{pid}] {name}')
-" 2>/dev/null || cat /tmp/vnext_scan.json
+    if isinstance(info, dict) and info.get("active", False):
+        name = info.get("name", "Product " + pid)
+        if "30000" in pid or "Copilot" in name:
+            print("  [" + pid + "] " + name)
+'
           else
             echo "No scan results file found"
           fi
