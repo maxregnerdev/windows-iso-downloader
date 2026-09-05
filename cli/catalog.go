@@ -61,13 +61,7 @@ var evalProducts = []EvalProduct{
 	{"copilot-os", "Windows 11 Copilot+ PC OS", "https://www.microsoft.com/en-us/evalcenter/download-windows-11-copilot-pc"},
 }
 
-// MSDL API constants
-const (
-	msProfile  = "606624d44113"
-	msLocale   = "en-US"
-	msUA       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	apiBaseURL = "https://api.msdl.tech-latest.com"
-)
+
 
 // DiscoverCopilotOSProducts dynamically fetches Copilot+ PC / Project Aion builds from Microsoft API
 func DiscoverCopilotOSProducts() []Product {
@@ -92,7 +86,7 @@ func DiscoverCopilotOSProducts() []Product {
 // fetchProductNameFromAPI fetches product name directly from Microsoft API
 func fetchProductNameFromAPI(productID string) string {
 	url := fmt.Sprintf("https://www.microsoft.com/software-download-connector/api/getskuinformationbyproductedition?profile=%s&productEditionId=%s&SKU=undefined&friendlyFileName=undefined&Locale=%s&sessionID=%s",
-		msProfile, productID, msLocale, generateSessionID())
+		msdlProfile, productID, msdlLocale, generateSessionID())
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
@@ -100,7 +94,7 @@ func fetchProductNameFromAPI(productID string) string {
 		return ""
 	}
 
-	req.Header.Set("User-Agent", msUA)
+	req.Header.Set("User-Agent", msdlUA)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Referer", "https://www.microsoft.com/en-us/software-download/windowsinsiderpreview")
 
