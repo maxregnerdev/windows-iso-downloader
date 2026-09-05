@@ -92,6 +92,13 @@ def scan_id(product_id):
         # the generic fallback below, silently.
         name = s.get("ProductDisplayName") or s.get("LocalizedProductDisplayName")
         if name:
+            # Tag Copilot+ PC / vNext builds
+            try:
+                pid_int = int(product_id)
+                if pid_int >= 30000:
+                    return f"{name} (Copilot+ PC / vNext)"
+            except ValueError:
+                pass
             return name
 
     return f"Windows Product {product_id}"

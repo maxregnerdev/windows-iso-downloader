@@ -212,6 +212,8 @@ var (
 		"server-2019": {Name: "Windows Server 2019", EvalURL: "https://www.microsoft.com/en-us/evalcenter/download-windows-server-2019"},
 		"server-2016": {Name: "Windows Server 2016", EvalURL: "https://www.microsoft.com/en-us/evalcenter/download-windows-server-2016"},
 		"win11-ent":   {Name: "Windows 11 Enterprise", EvalURL: "https://www.microsoft.com/en-us/evalcenter/download-windows-11-enterprise"},
+		// Copilot OS Evaluation
+		"copilot-os": {Name: "Windows 11 Copilot+ PC OS", EvalURL: "https://www.microsoft.com/en-us/evalcenter/download-windows-11-copilot-pc"},
 	}
 	evalCache    = make(map[string]evalCacheEntry)
 	evalCacheMu  sync.RWMutex
@@ -484,6 +486,11 @@ var validContributeProducts = map[string]bool{
 	"3265": true, "3266": true, "3267": true,
 	"3321": true, "3322": true, "3323": true,
 	"3324": true, "3325": true, "3326": true,
+	// Windows 11 vNext (Copilot+ PC) builds 30000+
+	"30000": true, "30001": true, "30002": true,
+	"30005": true, "30010": true, "30015": true,
+	"30020": true, "30025": true, "30030": true,
+	"30050": true,
 }
 
 // allowedCDNSuffixes is the CDN host allow-list for contributed download URLs.

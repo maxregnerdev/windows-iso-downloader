@@ -71,6 +71,10 @@ func referer(productID string) string {
 	if err != nil {
 		return "https://www.microsoft.com/en-us/software-download/windows8ISO"
 	}
+	// Copilot+ PC / vNext builds (30000+) use Windows 11 Insider referer
+	if id >= 30000 {
+		return "https://www.microsoft.com/en-us/software-download/windowsinsiderpreview"
+	}
 	if id >= 2935 {
 		return "https://www.microsoft.com/en-us/software-download/windows11"
 	}

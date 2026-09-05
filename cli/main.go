@@ -305,6 +305,12 @@ More info: https://msdl.tech-latest.com/cli`)
 }
 
 func runConsumer(productID, query, langName string, noContribute bool) error {
+	// Auto-enable Copilot OS features for vNext builds
+	if productID != "" {
+		if IsCopilotOSBuild(productID) {
+			fmt.Fprintln(os.Stderr, "\n[Copilot+ PC Mode] Windows 11 vNext build detected")
+		}
+	}
 	var product Product
 
 	if productID != "" {

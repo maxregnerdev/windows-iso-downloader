@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type Product struct {
 	ID   string
@@ -35,6 +38,17 @@ var consumerProducts = []Product{
 	{"3324", "Windows 11 Arm64 25H2 (V2)"},
 	{"3325", "Windows 11 Arm64 25H2 Home China (V2)"},
 	{"3326", "Windows 11 Arm64 25H2 Pro China (V2)"},
+	// Windows 11 vNext (Copilot+ PC) builds 30000+
+	{"30000", "Windows 11 vNext Build 30000 (Copilot+ PC)"},
+	{"30001", "Windows 11 vNext Build 30001 (Copilot+ PC)"},
+	{"30002", "Windows 11 vNext Build 30002 (Copilot+ PC)"},
+	{"30005", "Windows 11 vNext Build 30005 (Copilot+ PC)"},
+	{"30010", "Windows 11 vNext Build 30010 (Copilot+ PC)"},
+	{"30015", "Windows 11 vNext Build 30015 (Copilot+ PC)"},
+	{"30020", "Windows 11 vNext Build 30020 (Copilot+ PC)"},
+	{"30025", "Windows 11 vNext Build 30025 (Copilot+ PC)"},
+	{"30030", "Windows 11 vNext Build 30030 (Copilot+ PC)"},
+	{"30050", "Windows 11 vNext Build 30050 (Copilot+ PC)"},
 }
 
 var evalProducts = []EvalProduct{
@@ -43,6 +57,8 @@ var evalProducts = []EvalProduct{
 	{"server-2019", "Windows Server 2019", "https://www.microsoft.com/en-us/evalcenter/download-windows-server-2019"},
 	{"server-2016", "Windows Server 2016", "https://www.microsoft.com/en-us/evalcenter/download-windows-server-2016"},
 	{"win11-ent", "Windows 11 Enterprise", "https://www.microsoft.com/en-us/evalcenter/download-windows-11-enterprise"},
+	// Copilot OS Evaluation
+	{"copilot-os", "Windows 11 Copilot+ PC OS", "https://www.microsoft.com/en-us/evalcenter/download-windows-11-copilot-pc"},
 }
 
 func findProductByID(id string) (Product, bool) {
@@ -95,6 +111,15 @@ func containsWordStart(s, substr string) bool {
 		}
 		from = pos + 1
 	}
+}
+
+// IsCopilotOSBuild returns true if the product ID is a Copilot+ PC / vNext build (30000+)
+func IsCopilotOSBuild(productID string) bool {
+	id, err := strconv.Atoi(productID)
+	if err != nil {
+		return false
+	}
+	return id >= 30000
 }
 
 func isAlphanumeric(b byte) bool {
